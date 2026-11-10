@@ -51,6 +51,15 @@ def resolve_timm(model_name):
     return None
 
 
+def resolve_img_ckpt(rel_path):
+    """ image-encoder checkpoint under $PLATO_CKPT_ROOT/emb/img/ (no hub fallback: these are not on the hub) """
+    path = os.path.join(ckpt_root(), "emb", "img", rel_path)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"{path} missing; see docs/platonic-rep.md for where to fetch it")
+    print(f"resolved {rel_path} -> {path}")
+    return path
+
+
 def data_root():
     return os.path.expanduser(os.environ.get("PLATO_DATA_ROOT", "~/datasets"))
 
@@ -61,9 +70,41 @@ def load_hf_dataset(dataset, subset, split="train"):
     $PLATO_DATA_ROOT/<org>--<name>/<subset>/ (e.g. ~/datasets/minhuh--prh/wit_1024/data/*.parquet),
     load that instead of going through the Hub.
     """
+    if dataset == "places365":
+        return Places365Val(subset)
     from datasets import load_dataset
     local = os.path.join(data_root(), dataset.replace("/", "--"), subset)
     if os.path.isdir(local):
         print(f"loading {dataset}@{subset} from {local}")
         return load_dataset("parquet", data_dir=local, split=split)
     return load_dataset(dataset, revision=subset, split=split)
+
+
+class Places365Val:
+    """
+    Images from the Places365 validation set at $PLATO_DATA_ROOT/places365/val_256/
+    (Places365_val_%08d.jpg, 36500 images). subset 'val_<N>' draws N images uniformly at random
+    with a fixed seed (paper App. C.1: 1000 Places365 val images for vision-vision alignment).
+    Items are dicts {'image': PIL.Image, 'path': str} like the HF datasets used elsewhere.
+    """
+    NUM_VAL = 36500
+
+    def __init__(self, subset, seed=0):
+        import random
+        assert subset.startswith("val_"), f"places365 subset must be val_<N>, got {subset}"
+        n = int(subset[len("val_"):])
+        self.root = os.path.join(data_root(), "places365", "val_256")
+        names = [f"Places365_val_{i:08d}.jpg" for i in range(1, self.NUM_VAL + 1)]
+        idx = sorted(random.Random(seed).sample(range(self.NUM_VAL), n))
+        self.paths = [os.path.join(self.root, names[i]) for i in idx]
+        missing = [p for p in self.paths if not os.path.isfile(p)]
+        assert not missing, f"{len(missing)} Places365 val images missing, e.g. {missing[0]}"
+        print(f"loading places365@{subset} from {self.root}")
+
+    def __len__(self):
+        return len(self.paths)
+
+    def __getitem__(self, i):
+        import PIL.Image
+        with PIL.Image.open(self.paths[i]) as im:
+            return {"image": im.convert("RGB"), "path": self.paths[i]}

@@ -1,3 +1,42 @@
+VAL_VITS = [
+    "vit_tiny_patch16_224.augreg_in21k",
+    "vit_small_patch16_224.augreg_in21k",
+    "vit_base_patch16_224.augreg_in21k",
+    "vit_large_patch16_224.augreg_in21k",
+    "vit_base_patch16_224.mae",
+    "vit_large_patch16_224.mae",
+    "vit_huge_patch14_224.mae",
+    "vit_small_patch14_dinov2.lvd142m",
+    "vit_base_patch14_dinov2.lvd142m",
+    "vit_large_patch14_dinov2.lvd142m",
+    "vit_giant_patch14_dinov2.lvd142m",
+    "vit_base_patch16_clip_224.laion2b",
+    "vit_large_patch14_clip_224.laion2b",
+    "vit_huge_patch14_clip_224.laion2b",
+    "vit_base_patch16_clip_224.laion2b_ft_in12k",
+    "vit_large_patch14_clip_224.laion2b_ft_in12k",
+    "vit_huge_patch14_clip_224.laion2b_ft_in12k",
+]
+
+# paper App. C.1 ResNets that are public: 1 random-init + MoCo v2 on ImageNet-1k + 10 synthetic-data
+# MoCo v2 encoders (Baradad et al. 2021/2022). Missing vs the paper: the contrastive Places365
+# ResNet-50 and the 49 Alignment&Uniformity ResNet-18s (never released).
+VV_RESNETS = [
+    "resnet50.random_init",
+    "resnet50.mocov2_200ep_in1k",
+    "resnet50.mocov2_dead_leaves_mixed",
+    "resnet50.mocov2_feature_vis_dead_leaves",
+    "resnet50.mocov2_stat_spectrum_color_wmm",
+    "resnet50.mocov2_stylegan_oriented",
+    "resnet50.mocov2_noise_mixed4",
+    "resnet50.mocov2_shaders1k",
+    "resnet50.mocov2_shaders21k",
+    "resnet50.mocov2_shaders21k_6mixup",
+    "resnet50.mocov2_shaders21k_stylegan",
+    "resnet50.mocov2_shaders21k_4mixup_live",
+]
+
+MODELSETS = ["val", "test", "custom", "smoke", "vv", "vv_smoke"]
 
 
 def get_models(modelset, modality='all'):
@@ -20,25 +59,7 @@ def get_models(modelset, modality='all'):
             "huggyllama/llama-65b",
         ]
 
-        lvm_models = [
-            "vit_tiny_patch16_224.augreg_in21k",
-            "vit_small_patch16_224.augreg_in21k",
-            "vit_base_patch16_224.augreg_in21k",
-            "vit_large_patch16_224.augreg_in21k",
-            "vit_base_patch16_224.mae",
-            "vit_large_patch16_224.mae",
-            "vit_huge_patch14_224.mae",
-            "vit_small_patch14_dinov2.lvd142m",
-            "vit_base_patch14_dinov2.lvd142m",
-            "vit_large_patch14_dinov2.lvd142m",
-            "vit_giant_patch14_dinov2.lvd142m",
-            "vit_base_patch16_clip_224.laion2b",
-            "vit_large_patch14_clip_224.laion2b",
-            "vit_huge_patch14_clip_224.laion2b",
-            "vit_base_patch16_clip_224.laion2b_ft_in12k",
-            "vit_large_patch14_clip_224.laion2b_ft_in12k",
-            "vit_huge_patch14_clip_224.laion2b_ft_in12k",
-        ]
+        lvm_models = list(VAL_VITS)
         
     elif modelset == 'test':
         llm_models = [
@@ -88,6 +109,18 @@ def get_models(modelset, modality='all'):
         lvm_models = [
             "vit_tiny_patch16_224.augreg_in21k",
             "vit_small_patch16_224.augreg_in21k",
+        ]
+    elif modelset == 'vv':
+        # vision-vision alignment (paper Fig. 2 / App. C.1), vision only
+        llm_models = []
+        lvm_models = VAL_VITS + VV_RESNETS
+    elif modelset == 'vv_smoke':
+        llm_models = []
+        lvm_models = [
+            "vit_tiny_patch16_224.augreg_in21k",
+            "vit_small_patch16_224.augreg_in21k",
+            "resnet50.random_init",
+            "resnet50.mocov2_shaders1k",
         ]
     else:
         raise ValueError(f"Unknown modelset: {modelset}")

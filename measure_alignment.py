@@ -7,7 +7,7 @@ import numpy as np
 from tqdm.auto import tqdm
 
 import metrics
-from tasks import get_models
+from tasks import get_models, MODELSETS
 import utils
 from pprint import pprint
 
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     parser.add_argument("--prompt_y",       action="store_true")
     parser.add_argument("--pool_y",         type=str, default=None, choices=['avg', 'cls'])
 
-    parser.add_argument("--modelset",       type=str, default="val", choices=["val", "test", "custom", "smoke"])
+    parser.add_argument("--modelset",       type=str, default="val", choices=MODELSETS)
     parser.add_argument("--metric",         type=str, default="mutual_knn", choices=metrics.AlignmentMetrics.SUPPORTED_METRICS)
     parser.add_argument("--topk",           type=int, default=10)
 

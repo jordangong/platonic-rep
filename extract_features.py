@@ -6,15 +6,10 @@ from tqdm import trange
 
 import torch
 
-import timm
-from timm.data import resolve_data_config
-from timm.data.transforms_factory import create_transform
-from torchvision.models.feature_extraction import create_feature_extractor
-
-from datasets import load_dataset
-from tasks import get_models
+from tasks import get_models, MODELSETS
 from models import load_llm, load_tokenizer
-from paths import resolve_timm, load_hf_dataset
+from vision_models import load_vision_model
+from paths import load_hf_dataset
 import utils 
     
 
@@ -110,23 +105,23 @@ def extract_llm_features(filenames, dataset, args):
         
 def extract_lvm_features(filenames, dataset, args):
     """
-    Extracts features from vision models.
+    Extracts features from vision models (timm ViTs and registered ResNets, see vision_models.py).
+    Saves per-block features under "feats" (N x L x D tensor if all blocks share D, else a list
+    of N x D_l tensors) and the final pooled representation under "prelogits" (N x D).
     Args:
-        filenames: list of vision model names by timm identifiers
-        image_file_paths: list of image file paths
+        filenames: list of vision model names (timm identifiers or vision_models.RESNETS keys)
+        dataset: indexable dataset whose items have an 'image' (PIL)
         args: argparse arguments
     """
     assert args.pool == 'cls', "pooling is not supported for lvm features"
-    
+
     for lvm_model_name in filenames:
-        assert 'vit' in lvm_model_name, "only vision transformers are supported"
-        
         save_path = utils.to_feature_filename(
             args.output_dir, args.dataset, args.subset, lvm_model_name,
             pool=args.pool, prompt=None, caption_idx=None,
         )
         os.makedirs(os.path.dirname(save_path), exist_ok=True)
-        
+
         print(f"\ndataset: \t{args.dataset}")
         print(f"subset:    \t{args.subset}")
         print(f"processing:\t{lvm_model_name}")
@@ -136,38 +131,23 @@ def extract_lvm_features(filenames, dataset, args):
             print("file exists. skipping")
             continue
 
-        local_file = resolve_timm(lvm_model_name)
-        # pool files are the hub's timm-format safetensors -> plain state_dict load (not the .npz custom loader)
-        overlay = dict(file=local_file, custom_load=False) if local_file else None
-        vision_model = timm.create_model(lvm_model_name, pretrained=True, pretrained_cfg_overlay=overlay).cuda().eval()
+        vision_model, transform, extract = load_vision_model(lvm_model_name)
         lvm_param_count = sum([p.numel() for p in vision_model.parameters()])
 
-        transform = create_transform(
-            **resolve_data_config(vision_model.pretrained_cfg, model=vision_model)
-        )
-
-        if "vit" in lvm_model_name:
-            return_nodes = [f"blocks.{i}.add_1" for i in range(len(vision_model.blocks))]
-        else:
-            raise NotImplementedError(f"unknown model {lvm_model_name}")
-
-        vision_model = create_feature_extractor(vision_model, return_nodes=return_nodes)
-        lvm_feats = []
-
+        lvm_feats, prelogits = [], []
         for i in trange(0, len(dataset), args.batch_size):
             with torch.no_grad():
-                ims = torch.stack([transform(dataset[j]['image']) for j in range(i, i+args.batch_size)]).cuda()
-                lvm_output = vision_model(ims)
+                ims = torch.stack([transform(dataset[j]['image']) for j in range(i, min(i+args.batch_size, len(dataset)))]).cuda()
+                layers, pre = extract(ims)
+                lvm_feats.append([v.cpu() for v in layers])
+                prelogits.append(pre.cpu())
 
-                if args.pool == "cls":
-                    feats = [v[:, 0, :] for v in lvm_output.values()]
-                    feats = torch.stack(feats).permute(1, 0, 2)
-                    
-                lvm_feats.append(feats.cpu())
+        layers = [torch.cat([b[l] for b in lvm_feats]) for l in range(len(lvm_feats[0]))]
+        if len({v.shape[-1] for v in layers}) == 1:
+            layers = torch.stack(layers).permute(1, 0, 2)  # N x L x D, same layout as before
+        torch.save({"feats": layers, "prelogits": torch.cat(prelogits), "num_params": lvm_param_count}, save_path)
 
-        torch.save({"feats": torch.cat(lvm_feats), "num_params": lvm_param_count}, save_path)
-
-        del vision_model, transform, lvm_feats, lvm_output
+        del vision_model, transform, extract, lvm_feats, prelogits, layers
         gc.collect()  # free cyclic refs first, else empty_cache can't release them and the next
         torch.cuda.empty_cache()  # device_map="auto" sizes against stale memory -> CPU offload
         torch.cuda.ipc_collect()
@@ -186,7 +166,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset",        type=str, default="prh")
     parser.add_argument("--subset",         type=str, default="wit_1024")
     parser.add_argument("--caption_idx",    type=int, default=0)
-    parser.add_argument("--modelset",       type=str, default="val", choices=["val", "test", "custom", "smoke"])
+    parser.add_argument("--modelset",       type=str, default="val", choices=MODELSETS)
     parser.add_argument("--modality",       type=str, default="all", choices=["vision", "language", "all"])
     parser.add_argument("--output_dir",     type=str, default="./results/features")
     parser.add_argument("--qlora",          action="store_true")
