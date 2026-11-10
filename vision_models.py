@@ -3,7 +3,11 @@ Vision model zoo for feature extraction: timm ViTs, torchvision ResNets (random 
 MoCo-format contrastive checkpoints, Places365-CNN, torchvision IN-1k weights) and the
 Baradad et al. 2021 SmallAlexNet Alignment&Uniformity encoders.
 
-load_vision_model(name) -> (model, transform, extract) where extract(images) returns
+load_vision_model(name) -> VisionModel(model, transform, extract, size, mean, std):
+    transform: PIL -> tensor, the model's own eval transform
+    size, mean, std: the model's input resolution and normalization, for already-resized
+                     uint8 tensors (VTAB arrays, see vtab.py)
+    extract(images) returns
     layers:    list of N x D_l tensors, one per block (ViT: CLS token of each block output,
                identical to the fx node `blocks.{i}.add_1`; ResNet: global-avg-pooled
                output of each bottleneck/basic block; SmallAlexNet: each of its 8 blocks,
@@ -12,6 +16,8 @@ load_vision_model(name) -> (model, transform, extract) where extract(images) ret
                probe would see). ViT: timm forward_head(pre_logits=True). ResNet:
                avgpool(layer4) == layers[-1]. SmallAlexNet: fc6 == layers[5].
 """
+from collections import namedtuple
+
 import torch
 import torchvision
 import torchvision.transforms as T
@@ -21,6 +27,13 @@ from timm.data import resolve_data_config
 from timm.data.transforms_factory import create_transform
 
 from paths import resolve_timm, resolve_img_ckpt, resolve_torch_hub
+
+
+VisionModel = namedtuple("VisionModel", ["model", "transform", "extract", "size", "mean", "std"])
+
+IMAGENET_MEAN, IMAGENET_STD = (0.485, 0.456, 0.406), (0.229, 0.224, 0.225)
+ALEXNET_MEAN = (0.44087801806139126, 0.42790631331699347, 0.3867879370752931)
+ALEXNET_STD = (0.26826768628079806, 0.2610450402318512, 0.26866836876860795)
 
 
 # ResNets used by the paper's vision-vision study (App. C.1) that are publicly available.
@@ -67,15 +80,14 @@ ALEXNET_TRANSFORM = T.Compose([
     T.Resize(70),
     T.CenterCrop(64),
     T.ToTensor(),
-    T.Normalize((0.44087801806139126, 0.42790631331699347, 0.3867879370752931),
-                (0.26826768628079806, 0.2610450402318512, 0.26866836876860795)),
+    T.Normalize(ALEXNET_MEAN, ALEXNET_STD),
 ])
 
 IMAGENET_TRANSFORM = T.Compose([
     T.Resize(256, interpolation=T.InterpolationMode.BILINEAR),
     T.CenterCrop(224),
     T.ToTensor(),
-    T.Normalize(mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225)),
+    T.Normalize(mean=IMAGENET_MEAN, std=IMAGENET_STD),
 ])
 
 
@@ -171,6 +183,7 @@ def load_vision_model(name):
         blocks = [b for stage in (model.layer1, model.layer2, model.layer3, model.layer4) for b in stage]
         taps = _BlockTaps(blocks, lambda o: o.mean(dim=(2, 3)))
         transform = IMAGENET_TRANSFORM
+        size, mean, std = 224, IMAGENET_MEAN, IMAGENET_STD
 
         def extract(ims):
             prelogits = model(ims)
@@ -182,6 +195,7 @@ def load_vision_model(name):
         # conv blocks: spatial average (as their forward(average=True)); fc blocks are already N x D
         taps = _BlockTaps(list(model.blocks), lambda o: o.mean(dim=(2, 3)) if o.ndim == 4 else o)
         transform = ALEXNET_TRANSFORM
+        size, mean, std = 64, ALEXNET_MEAN, ALEXNET_STD
 
         def extract(ims):
             model(ims)
@@ -195,11 +209,13 @@ def load_vision_model(name):
         overlay = dict(file=local_file, custom_load=False) if local_file else None
         model = timm.create_model(name, pretrained=True, pretrained_cfg_overlay=overlay).cuda().eval()
         taps = _BlockTaps(list(model.blocks), lambda o: o[:, 0, :])
-        transform = create_transform(**resolve_data_config(model.pretrained_cfg, model=model))
+        data_cfg = resolve_data_config(model.pretrained_cfg, model=model)
+        transform = create_transform(**data_cfg)
+        size, mean, std = data_cfg["input_size"][-1], tuple(data_cfg["mean"]), tuple(data_cfg["std"])
 
         def extract(ims):
             prelogits = model.forward_head(model.forward_features(ims), pre_logits=True)
             layers = taps.pop()
             return layers, prelogits
 
-    return model, transform, extract
+    return VisionModel(model, transform, extract, size, mean, std)

@@ -131,7 +131,7 @@ def extract_lvm_features(filenames, dataset, args):
             print("file exists. skipping")
             continue
 
-        vision_model, transform, extract = load_vision_model(lvm_model_name)
+        vision_model, transform, extract, *_ = load_vision_model(lvm_model_name)
         lvm_param_count = sum([p.numel() for p in vision_model.parameters()])
 
         lvm_feats, prelogits = [], []
