@@ -1,5 +1,6 @@
 import torch
 from transformers import AutoModelForCausalLM, BitsAndBytesConfig, AutoTokenizer, AutoConfig
+from paths import resolve_llm
 
 
 def auto_determine_dtype():
@@ -26,6 +27,7 @@ def check_bfloat16_support():
     
 def load_llm(llm_model_path, qlora=False, force_download=False, from_init=False):
     """ load huggingface language model """
+    llm_model_path = resolve_llm(llm_model_path)
     compute_dtype, torch_dtype = auto_determine_dtype()
     
     quantization_config = None
@@ -65,7 +67,7 @@ def load_llm(llm_model_path, qlora=False, force_download=False, from_init=False)
 
 def load_tokenizer(llm_model_path):
     """ setting up tokenizer. if your tokenizer needs special settings edit here. """
-    tokenizer = AutoTokenizer.from_pretrained(llm_model_path)
+    tokenizer = AutoTokenizer.from_pretrained(resolve_llm(llm_model_path))
     
     if "huggyllama" in llm_model_path:
         tokenizer.pad_token = "[PAD]"        

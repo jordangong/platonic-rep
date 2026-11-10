@@ -82,6 +82,13 @@ def get_models(modelset, modality='all'):
         lvm_models = [
             "vit_giant_patch14_dinov2.lvd142m",
         ]
+    elif modelset == 'smoke':
+        # tiny pipeline check (fits a 12GB GPU)
+        llm_models = ["bigscience/bloomz-560m"]
+        lvm_models = [
+            "vit_tiny_patch16_224.augreg_in21k",
+            "vit_small_patch16_224.augreg_in21k",
+        ]
     else:
         raise ValueError(f"Unknown modelset: {modelset}")
     

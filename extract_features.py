@@ -14,6 +14,7 @@ from torchvision.models.feature_extraction import create_feature_extractor
 from datasets import load_dataset
 from tasks import get_models
 from models import load_llm, load_tokenizer
+from paths import resolve_timm, load_hf_dataset
 import utils 
     
 
@@ -135,7 +136,9 @@ def extract_lvm_features(filenames, dataset, args):
             print("file exists. skipping")
             continue
 
-        vision_model = timm.create_model(lvm_model_name, pretrained=True).cuda().eval()
+        local_file = resolve_timm(lvm_model_name)
+        overlay = dict(file=local_file) if local_file else None
+        vision_model = timm.create_model(lvm_model_name, pretrained=True, pretrained_cfg_overlay=overlay).cuda().eval()
         lvm_param_count = sum([p.numel() for p in vision_model.parameters()])
 
         transform = create_transform(
@@ -182,7 +185,7 @@ if __name__ == "__main__":
     parser.add_argument("--dataset",        type=str, default="prh")
     parser.add_argument("--subset",         type=str, default="wit_1024")
     parser.add_argument("--caption_idx",    type=int, default=0)
-    parser.add_argument("--modelset",       type=str, default="val", choices=["val", "test"])
+    parser.add_argument("--modelset",       type=str, default="val", choices=["val", "test", "custom", "smoke"])
     parser.add_argument("--modality",       type=str, default="all", choices=["vision", "language", "all"])
     parser.add_argument("--output_dir",     type=str, default="./results/features")
     parser.add_argument("--qlora",          action="store_true")
@@ -194,7 +197,7 @@ if __name__ == "__main__":
     llm_models, lvm_models = get_models(args.modelset, modality=args.modality)
     
     # load dataset once outside    
-    dataset = load_dataset(args.dataset, revision=args.subset, split='train')
+    dataset = load_hf_dataset(args.dataset, args.subset, split='train')
 
     if args.modality in ["all", "language"]:
         # extract all language model features

@@ -1,11 +1,21 @@
-torch>=2.1.2
-torchvision
-torchaudio
+# Pinned to the paper's environment (README: python 3.11, PyTorch 2.2.0; code from 2024-05).
+# Other libs pinned to releases available by May 2024 so model code / timm fx node names match.
+# torch 2.2.0 on PyPI is the cu121 build: works with hpc-2's driver 565 and with sm_61 (TITAN X).
+torch==2.2.0
+torchvision==0.17.0
+numpy==1.26.4
+transformers==4.40.2
+tokenizers==0.19.1
+timm==0.9.16
+accelerate==0.29.3
+datasets==2.19.1
+huggingface_hub==0.23.0
+fsspec==2024.3.1
+pyarrow==16.1.0
+safetensors==0.4.3
+sentencepiece==0.2.0
+protobuf==4.25.3
+scikit-learn==1.4.2
 tqdm
-datasets
-scikit-learn
-transformers
-timm
-accelerate
-sentencepiece
-protobuf
+PySocks   # requests over the SOCKS all_proxy (dev box / hpc-2)
+socksio   # httpx over the SOCKS all_proxy
