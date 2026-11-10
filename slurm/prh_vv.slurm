@@ -18,6 +18,7 @@ MODELSET=${MODELSET:-vv}
 STAGES=${STAGES:-"extract align"}
 METRICS=${METRICS:-mutual_knn}
 LAYERS=${LAYERS:-"final all"}
+BATCH=${BATCH:-16}  # fp32 ViT-g OOMs a 24 GB 4090 at 50
 DATA="--dataset places365 --subset val_1000 --modelset $MODELSET"
 
 # everything is pre-fetched: timm/ + emb/img/ in ~/checkpoints, ~/datasets/places365/val_256
@@ -30,7 +31,7 @@ nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
 for stage in $STAGES; do
   case $stage in
-    extract) $UV run python extract_features.py $DATA --modality vision --pool cls --batch_size 50 ;;
+    extract) $UV run python extract_features.py $DATA --modality vision --pool cls --batch_size $BATCH ;;
     align)
       for m in $METRICS; do for l in $LAYERS; do
         $UV run python measure_vv_alignment.py $DATA --metric "$m" --layers "$l"
