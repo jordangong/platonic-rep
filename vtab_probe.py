@@ -53,14 +53,24 @@ def load_split(task, split):
 def extract_prelogits(vm, images, batch_size):
     mean = torch.tensor(vm.mean, device="cuda").view(1, 3, 1, 1)
     std = torch.tensor(vm.std, device="cuda").view(1, 3, 1, 1)
-    out = []
-    for i in range(0, len(images), batch_size):
+    out, i = [], 0
+    while i < len(images):
         x = torch.from_numpy(np.array(images[i:i + batch_size])).cuda(non_blocking=True)  # copy out of the read-only memmap
         x = x.permute(0, 3, 1, 2).float().div_(255)
         if x.shape[-1] != vm.size:
             x = F.interpolate(x, size=(vm.size, vm.size), mode="bilinear", antialias=True, align_corners=False)
-        _, pre = vm.extract((x - mean) / std)
+        try:
+            _, pre = vm.extract((x - mean) / std)
+        except torch.cuda.OutOfMemoryError:  # e.g. ViT-g at 518 px: halve the batch and retry
+            if batch_size == 1:
+                raise
+            del x
+            torch.cuda.empty_cache()
+            batch_size //= 2
+            print(f"  OOM: batch size -> {batch_size}", flush=True)
+            continue
         out.append(pre.float().clone())  # ViT prelogits are x[:, 0] views: clone, or each keeps its B x T x D tokens alive
+        i += len(x)
     return torch.cat(out)
 
 

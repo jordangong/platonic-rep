@@ -186,6 +186,7 @@ def load_vision_model(name):
         size, mean, std = 224, IMAGENET_MEAN, IMAGENET_STD
 
         def extract(ims):
+            taps.pop()  # drop leftovers of a forward that raised (e.g. OOM)
             prelogits = model(ims)
             layers = taps.pop()
             return layers, prelogits
@@ -198,6 +199,7 @@ def load_vision_model(name):
         size, mean, std = 64, ALEXNET_MEAN, ALEXNET_STD
 
         def extract(ims):
+            taps.pop()
             model(ims)
             layers = taps.pop()
             return layers, layers[ALEXNET_PRELOGITS_BLOCK]
@@ -214,6 +216,7 @@ def load_vision_model(name):
         size, mean, std = data_cfg["input_size"][-1], tuple(data_cfg["mean"]), tuple(data_cfg["std"])
 
         def extract(ims):
+            taps.pop()
             prelogits = model.forward_head(model.forward_features(ims), pre_logits=True)
             layers = taps.pop()
             return layers, prelogits

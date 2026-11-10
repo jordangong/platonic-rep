@@ -11,6 +11,7 @@
 # Resumes per (model, task): rerun the same command after a timeout.
 #   sbatch slurm/vtab_probe.slurm                      # vv_ext, 4 shards
 #   MODELSET=vv_smoke sbatch --array=0 slurm/vtab_probe.slurm
+#   MODELS=vit_giant_patch14_dinov2.lvd142m TASKS=dtd,pets sbatch --array=0 slurm/vtab_probe.slurm
 # Then: uv run python analyze_vv_vtab.py --modelset vv_ext
 set -euo pipefail
 cd ~/repos/plato/platonic-rep
@@ -19,4 +20,4 @@ MODELSET=${MODELSET:-vv_ext}
 export PLATO_CKPT_ROOT=~/checkpoints PLATO_DATA_ROOT=~/datasets
 export HF_HUB_OFFLINE=1 HF_DATASETS_OFFLINE=1
 echo "host=$(hostname) gpus=${CUDA_VISIBLE_DEVICES:-} modelset=$MODELSET shard=$SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT"
-~/.local/bin/uv run python vtab_probe.py --modelset $MODELSET --shard "$SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT" ${TASKS:+--tasks $TASKS}
+~/.local/bin/uv run python vtab_probe.py --modelset $MODELSET --shard "$SLURM_ARRAY_TASK_ID/$SLURM_ARRAY_TASK_COUNT" ${MODELS:+--models $MODELS} ${TASKS:+--tasks $TASKS}
