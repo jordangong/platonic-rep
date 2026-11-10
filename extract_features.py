@@ -102,9 +102,9 @@ def extract_llm_features(filenames, dataset, args):
         torch.save(save_dict, save_path)
 
         del language_model, tokenizer, llm_feats, llm_output
-        torch.cuda.empty_cache()
+        gc.collect()  # free cyclic refs first, else empty_cache can't release them and the next
+        torch.cuda.empty_cache()  # device_map="auto" sizes against stale memory -> CPU offload
         torch.cuda.ipc_collect()
-        gc.collect()
     return
     
         
@@ -168,9 +168,9 @@ def extract_lvm_features(filenames, dataset, args):
         torch.save({"feats": torch.cat(lvm_feats), "num_params": lvm_param_count}, save_path)
 
         del vision_model, transform, lvm_feats, lvm_output
-        torch.cuda.empty_cache()
+        gc.collect()  # free cyclic refs first, else empty_cache can't release them and the next
+        torch.cuda.empty_cache()  # device_map="auto" sizes against stale memory -> CPU offload
         torch.cuda.ipc_collect()
-        gc.collect()
 
 
 
