@@ -1,7 +1,7 @@
 #!/bin/bash -l
 #SBATCH --job-name=prh-vl
 #SBATCH --account=jiminxiao
-#SBATCH --partition=gpua800 --qos=4gpus --gres=gpu:4
+#SBATCH --partition=gpua800,gpua8001t --qos=4gpus --gres=gpu:4
 #SBATCH --cpus-per-gpu=8 --mem=200G --time=1-00:00:00
 #SBATCH --output=logs/%x-%j.out
 #
