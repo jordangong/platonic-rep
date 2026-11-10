@@ -3,6 +3,7 @@
 # torch 2.2.0 on PyPI is the cu121 build: works with hpc-2's driver 565 and with sm_61 (TITAN X).
 torch==2.2.0
 torchvision==0.17.0
+torchaudio==2.2.0   # metrics.py imports torchaudio.functional
 numpy==1.26.4
 transformers==4.40.2
 tokenizers==0.19.1

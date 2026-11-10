@@ -137,7 +137,8 @@ def extract_lvm_features(filenames, dataset, args):
             continue
 
         local_file = resolve_timm(lvm_model_name)
-        overlay = dict(file=local_file) if local_file else None
+        # pool files are the hub's timm-format safetensors -> plain state_dict load (not the .npz custom loader)
+        overlay = dict(file=local_file, custom_load=False) if local_file else None
         vision_model = timm.create_model(lvm_model_name, pretrained=True, pretrained_cfg_overlay=overlay).cuda().eval()
         lvm_param_count = sum([p.numel() for p in vision_model.parameters()])
 
