@@ -60,7 +60,7 @@ def extract_prelogits(vm, images, batch_size):
         if x.shape[-1] != vm.size:
             x = F.interpolate(x, size=(vm.size, vm.size), mode="bilinear", antialias=True, align_corners=False)
         _, pre = vm.extract((x - mean) / std)
-        out.append(pre.float())
+        out.append(pre.float().clone())  # ViT prelogits are x[:, 0] views: clone, or each keeps its B x T x D tokens alive
     return torch.cat(out)
 
 

@@ -208,7 +208,7 @@ def load_vision_model(name):
         # pool files are the hub's timm-format safetensors -> plain state_dict load (not the .npz custom loader)
         overlay = dict(file=local_file, custom_load=False) if local_file else None
         model = timm.create_model(name, pretrained=True, pretrained_cfg_overlay=overlay).cuda().eval()
-        taps = _BlockTaps(list(model.blocks), lambda o: o[:, 0, :])
+        taps = _BlockTaps(list(model.blocks), lambda o: o[:, 0, :].clone())  # clone: a view keeps the whole token tensor alive
         data_cfg = resolve_data_config(model.pretrained_cfg, model=model)
         transform = create_transform(**data_cfg)
         size, mean, std = data_cfg["input_size"][-1], tuple(data_cfg["mean"]), tuple(data_cfg["std"])
