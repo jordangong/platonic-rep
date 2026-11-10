@@ -36,7 +36,32 @@ VV_RESNETS = [
     "resnet50.mocov2_shaders21k_4mixup_live",
 ]
 
-MODELSETS = ["val", "test", "custom", "smoke", "vv", "vv_smoke"]
+# stand-ins for the paper's 49 unreleased A&U ResNet-18s + contrastive Places365 R50 (user choice,
+# 2026-11-10): the 14 released A&U SmallAlexNets (same objective/data family) + a public zoo
+VV_EXT = [
+    "smallalexnet.au_dead_leaves-squares",
+    "smallalexnet.au_dead_leaves-oriented",
+    "smallalexnet.au_dead_leaves-textures",
+    "smallalexnet.au_dead_leaves-mixed",
+    "smallalexnet.au_stat-spectrum",
+    "smallalexnet.au_stat-wmm",
+    "smallalexnet.au_stat-spectrum_color",
+    "smallalexnet.au_stat-spectrum_color_wmm",
+    "smallalexnet.au_stylegan-random",
+    "smallalexnet.au_stylegan-highfreq",
+    "smallalexnet.au_stylegan-sparse",
+    "smallalexnet.au_stylegan-oriented",
+    "smallalexnet.au_feature_vis-random",
+    "smallalexnet.au_feature_vis-dead_leaves",
+    "resnet18.tv_in1k",
+    "resnet34.tv_in1k",
+    "resnet50.tv_in1k",
+    "resnet101.tv_in1k",
+    "resnet152.tv_in1k",
+    "resnet50.places365_sup",
+]
+
+MODELSETS = ["val", "test", "custom", "smoke", "vv", "vv_ext", "vv_smoke"]
 
 
 def get_models(modelset, modality='all'):
@@ -114,6 +139,10 @@ def get_models(modelset, modality='all'):
         # vision-vision alignment (paper Fig. 2 / App. C.1), vision only
         llm_models = []
         lvm_models = VAL_VITS + VV_RESNETS
+    elif modelset == 'vv_ext':
+        # vv + stand-ins for the unreleased models
+        llm_models = []
+        lvm_models = VAL_VITS + VV_RESNETS + VV_EXT
     elif modelset == 'vv_smoke':
         llm_models = []
         lvm_models = [
@@ -121,6 +150,8 @@ def get_models(modelset, modality='all'):
             "vit_small_patch16_224.augreg_in21k",
             "resnet50.random_init",
             "resnet50.mocov2_shaders1k",
+            "resnet18.tv_in1k",
+            "smallalexnet.au_stat-spectrum",
         ]
     else:
         raise ValueError(f"Unknown modelset: {modelset}")

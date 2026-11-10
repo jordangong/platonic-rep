@@ -60,6 +60,15 @@ def resolve_img_ckpt(rel_path):
     return path
 
 
+def resolve_torch_hub(filename):
+    """ torchvision weight file under $PLATO_CKPT_ROOT/torch-hub/ (no download fallback) """
+    path = os.path.join(ckpt_root(), "torch-hub", filename)
+    if not os.path.isfile(path):
+        raise FileNotFoundError(f"{path} missing; copy it from bigbox checkpoints/torch-hub/")
+    print(f"resolved {filename} -> {path}")
+    return path
+
+
 def data_root():
     return os.path.expanduser(os.environ.get("PLATO_DATA_ROOT", "~/datasets"))
 
