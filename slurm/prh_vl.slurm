@@ -9,7 +9,11 @@
 # Usage (from the repo root on hpc-2):
 #   sbatch slurm/prh_vl.slurm                                  # full val set, mutual_knn
 #   MODELSET=smoke sbatch --gres=gpu:1 --mem=32G --time=1:00:00 slurm/prh_vl.slurm
-#   STAGES="align" METRICS="mutual_knn cka cknna" sbatch --gres=gpu:1 --mem=64G slurm/prh_vl.slurm
+#   STAGES="align" METRICS="mutual_knn cka cknna" sbatch --gres=gpu:a800:1 --mem=64G slurm/prh_vl.slurm
+# Backfill-friendly split (our priority is ~0; pick nodes/--time with hpcmon fit first):
+#   vision   : 1 GPU, any (4090 ok), ~20 min for val
+#   language : 2x A800 (llama-65b bf16 fits in 160 GB), ~40 min for val; resumable per model
+#   align    : 1x **80 GB** GPU -- OOMs on a 24 GB 4090 (torch.quantile on llama-65b feats)
 set -euo pipefail
 cd ~/repos/plato/platonic-rep
 
